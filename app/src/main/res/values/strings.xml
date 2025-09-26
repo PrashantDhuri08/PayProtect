@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">ScamDetector</string>
+    <string name="enable_service_button">Enable Scam Detector Service</string>
+    <string name="accessibility_service_label">ScamDetector</string>
+    <string name="accessibility_service_description">This service reads screen text to detect potential scams in real-time.</string>
+    <string name="channel_name">Scam Alerts</string>
+    <string name="channel_description">Notifications for potential scam messages detected on screen</string>
+</resources>
+
