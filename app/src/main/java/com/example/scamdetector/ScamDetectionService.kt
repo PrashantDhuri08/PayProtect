@@ -1,6 +1,7 @@
 package com.example.scamdetector
 
 import android.accessibilityservice.AccessibilityService
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -9,21 +10,16 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
-import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.app.NotificationCompat
 
 class ScamDetectionService : AccessibilityService() {
 
     private lateinit var tfLiteHelper: TfLiteHelper
-    private var lastProcessedText: String = ""
-    private var lastProcessedTime: Long = 0
 
     companion object {
         private const val TAG = "ScamDetectionService"
         private const val NOTIFICATION_CHANNEL_ID = "scam_detector_channel"
         private const val NOTIFICATION_ID = 1
-        // Debounce delay to avoid re-processing the same text too quickly
-        private const val DEBOUNCE_DELAY_MS = 2000
     }
 
     override fun onServiceConnected() {
@@ -34,42 +30,26 @@ class ScamDetectionService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
-            event?.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
+        // We only care about notification events now
+        if (event?.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
+            val parcelable = event.parcelableData
+            if (parcelable is Notification) {
+                // Extract title and text from the notification's details
+                val extras = parcelable.extras
+                val title = extras.getString(Notification.EXTRA_TITLE) ?: ""
+                val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
+                val fullText = "$title\n$text"
 
-            val rootNode = rootInActiveWindow ?: return
-            val textBuilder = StringBuilder()
-            extractTextFromNode(rootNode, textBuilder)
-            val fullText = textBuilder.toString()
-            rootNode.recycle()
+                if (fullText.isNotBlank()) {
+                    Log.d(TAG, "Processing notification text: $fullText")
+                    val (prediction, confidence) = tfLiteHelper.classify(fullText)
 
-            val currentTime = System.currentTimeMillis()
-            // Debounce check: process only if text is new and enough time has passed
-            if (fullText.isNotBlank() && fullText != lastProcessedText && (currentTime - lastProcessedTime > DEBOUNCE_DELAY_MS)) {
-                lastProcessedText = fullText
-                lastProcessedTime = currentTime
-
-                Log.d(TAG, "Processing text: $fullText")
-                val (prediction, confidence) = tfLiteHelper.classify(fullText)
-
-                Log.d(TAG, "Prediction: $prediction, Confidence: $confidence")
-                if (prediction == "Scam" && confidence > 0.8) { // Confidence threshold
-                    sendNotification(fullText)
+                    Log.d(TAG, "Prediction: $prediction, Confidence: $confidence")
+                    if (prediction == "Scam" && confidence > 0.8) { // Confidence threshold
+                        sendNotification("Scam detected in a notification from another app:\n\"$text\"")
+                    }
                 }
             }
-        }
-    }
-
-    /**
-     * Recursively traverses the node tree to extract all text content.
-     */
-    private fun extractTextFromNode(node: AccessibilityNodeInfo?, builder: StringBuilder) {
-        if (node == null) return
-        if (node.text != null && node.text.isNotBlank()) {
-            builder.append(node.text).append("\n")
-        }
-        for (i in 0 until node.childCount) {
-            extractTextFromNode(node.getChild(i), builder)
         }
     }
 
@@ -82,8 +62,7 @@ class ScamDetectionService : AccessibilityService() {
         val notificationBuilder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground) // Ensure you have this drawable
             .setContentTitle("Potential Scam Detected!")
-            .setContentText("Suspicious text found on your screen.")
-            .setStyle(NotificationCompat.BigTextStyle().bigText("Detected Content:\n\"$detectedText\""))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(detectedText))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
@@ -102,11 +81,10 @@ class ScamDetectionService : AccessibilityService() {
                 description = descriptionText
             }
             val notificationManager: NotificationManager =
-                getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
     }
-
 
     override fun onInterrupt() {
         Log.w(TAG, "Scam Detection Service interrupted.")
@@ -117,5 +95,6 @@ class ScamDetectionService : AccessibilityService() {
         super.onDestroy()
         Log.d(TAG, "Scam Detection Service destroyed and TFLite helper closed.")
     }
-}
 
+    // The extractTextFromNode function is no longer needed, so it has been removed.
+}
