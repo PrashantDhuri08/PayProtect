@@ -3,7 +3,12 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.example.scamdetector">
 
+    <!-- Permission to show your own notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- No need for Notification Listener permission since you’re using Accessibility -->
+    <!-- <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" /> -->
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -14,6 +19,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ScamDetector"
         tools:targetApi="31">
+
+        <!-- Main launcher activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -23,14 +30,17 @@
             </intent-filter>
         </activity>
 
+        <!-- Accessibility Service -->
         <service
             android:name=".ScamDetectionService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:label="@string/accessibility_service_description"
             android:exported="true">
+
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
+
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
@@ -39,4 +49,3 @@
     </application>
 
 </manifest>
-
