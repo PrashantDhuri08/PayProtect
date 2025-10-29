@@ -12,14 +12,14 @@
     <ImageView
         android:layout_width="120dp"
         android:layout_height="120dp"
-        android:src="@android:drawable/ic_dialog_alert"
-        app:tint="@android:color/holo_orange_dark"
+        android:src="@drawable/ic_launcher2"
+
         android:contentDescription="Warning Icon" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Scam Text Detector"
+        android:text="AI-Powered Scam Alerts"
         android:textSize="28sp"
         android:textStyle="bold"
         android:layout_marginTop="16dp"/>

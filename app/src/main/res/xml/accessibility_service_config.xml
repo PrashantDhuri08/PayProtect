@@ -5,4 +5,6 @@
     android:accessibilityFeedbackType="feedbackGeneric"
     android:notificationTimeout="100"
     android:canRetrieveWindowContent="false"
-    android:settingsActivity="com.example.scamdetector.MainActivity" />
+    android:settingsActivity="com.example.scamdetector.MainActivity"
+
+/>
