@@ -127,6 +127,7 @@ class TfLiteHelper(private val context: Context) {
         return Pair(inputIds, attentionMask)
     }
 
+
     fun classify(text: String): Pair<String, Float> {
         if (interpreter == null || vocab.isEmpty()) {
             Log.e(TAG, "Cannot classify: Interpreter or vocabulary not initialized.")
@@ -134,10 +135,8 @@ class TfLiteHelper(private val context: Context) {
         }
 
         try {
-            // 1. Preprocess text to get input_ids and attention_mask
             val (inputIds, attentionMask) = preprocessText(text)
 
-            // 2. Prepare input buffers
             val inputIdsBuffer = ByteBuffer.allocateDirect(MAX_LEN * 4).apply {
                 order(ByteOrder.nativeOrder())
                 asIntBuffer().put(inputIds)
@@ -149,22 +148,23 @@ class TfLiteHelper(private val context: Context) {
 
             val inputs = arrayOf(inputIdsBuffer, attentionMaskBuffer)
             val outputs = mutableMapOf<Int, Any>()
-            // The output is an array of logits for 2 classes ("not spam", "spam")
             val outputLogits = Array(1) { FloatArray(2) }
             outputs[0] = outputLogits
 
-            // 3. Run inference
             interpreter?.runForMultipleInputsOutputs(inputs, outputs)
 
-            // 4. Process the output
             val logits = outputLogits[0]
             val probabilities = softmax(logits)
 
-            val predictedClassId = probabilities.indices.maxByOrNull { probabilities[it] } ?: -1
-            val confidence = if(predictedClassId != -1) probabilities[predictedClassId] else 0.0f
-
-            // As per the training script: 0 is "not spam", 1 is "spam"
+            val notScamProb = probabilities[0]
+            val scamProb = probabilities[1]
+            val predictedClassId = if (scamProb > notScamProb) 1 else 0
+            val confidence = probabilities[predictedClassId]
             val prediction = if (predictedClassId == 1) "Scam" else "Not Scam"
+
+            // 🔹 Extra logging for better debugging
+            Log.d(TAG, "Probabilities → NotScam=${"%.3f".format(notScamProb)}, Scam=${"%.3f".format(scamProb)}")
+            Log.d(TAG, "Predicted: $prediction (Confidence: ${"%.3f".format(confidence)})")
 
             return Pair(prediction, confidence)
         } catch (e: Exception) {
@@ -172,6 +172,53 @@ class TfLiteHelper(private val context: Context) {
             return Pair("Error", 0.0f)
         }
     }
+
+
+//    fun classify(text: String): Pair<String, Float> {
+//        if (interpreter == null || vocab.isEmpty()) {
+//            Log.e(TAG, "Cannot classify: Interpreter or vocabulary not initialized.")
+//            return Pair("Error", 0.0f)
+//        }
+//
+//        try {
+//            // 1. Preprocess text to get input_ids and attention_mask
+//            val (inputIds, attentionMask) = preprocessText(text)
+//
+//            // 2. Prepare input buffers
+//            val inputIdsBuffer = ByteBuffer.allocateDirect(MAX_LEN * 4).apply {
+//                order(ByteOrder.nativeOrder())
+//                asIntBuffer().put(inputIds)
+//            }
+//            val attentionMaskBuffer = ByteBuffer.allocateDirect(MAX_LEN * 4).apply {
+//                order(ByteOrder.nativeOrder())
+//                asIntBuffer().put(attentionMask)
+//            }
+//
+//            val inputs = arrayOf(inputIdsBuffer, attentionMaskBuffer)
+//            val outputs = mutableMapOf<Int, Any>()
+//            // The output is an array of logits for 2 classes ("not spam", "spam")
+//            val outputLogits = Array(1) { FloatArray(2) }
+//            outputs[0] = outputLogits
+//
+//            // 3. Run inference
+//            interpreter?.runForMultipleInputsOutputs(inputs, outputs)
+//
+//            // 4. Process the output
+//            val logits = outputLogits[0]
+//            val probabilities = softmax(logits)
+//
+//            val predictedClassId = probabilities.indices.maxByOrNull { probabilities[it] } ?: -1
+//            val confidence = if(predictedClassId != -1) probabilities[predictedClassId] else 0.0f
+//
+//            // As per the training script: 0 is "not spam", 1 is "spam"
+//            val prediction = if (predictedClassId == 1) "Scam" else "Not Scam"
+//
+//            return Pair(prediction, confidence)
+//        } catch (e: Exception) {
+//            Log.e(TAG, "Error during classification.", e)
+//            return Pair("Error", 0.0f)
+//        }
+//    }
 
     /**
      * Converts raw logit scores into probabilities.
